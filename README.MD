@@ -3,6 +3,7 @@
 A daemon to save and restore the state / positions of X11 windows when screen are plugged / unplugged.
 
 This tends to be useful for people (like me) using passive KVM's, because switching between machines causes the screen to be physically detached, and so all windows usually end up in one corner which can be annoying.
+
 This program solves the problem by periodically saving the position of all windows on an X11 display, and restoring them when screens are unplugged and then plugged again.
 
 
@@ -29,4 +30,30 @@ $ apt-get install libx11-dev # Install the libx11 headers
 $ git clone https://bitbucket.org/_Blue/kvmtool # Clone this repository
 $ cd kvmtool
 $ make
+```
+
+# Run with systemd
+
+Update the x & y argument to match your desktop resolution.
+
+
+```
+[Unit]
+Description=kvmtool
+
+[Service]
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/kvmtool -x 7040 -y 3600 --exclude nemo-desktop,Desktop
+
+[Install]
+WantedBy=default.target
+```
+
+Then install and start with:
+
+
+```
+$ systemctl --user daemon-reload
+$ systemctl --user start kvmtool
+$ systemctl --user enable kvmtool
 ```
