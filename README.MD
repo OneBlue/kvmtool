@@ -34,7 +34,7 @@ $ make
 
 # Run with systemd
 
-Update the x & y argument to match your desktop resolution.
+Update the x & y arguments to match your desktop resolution.
 
 
 ```
