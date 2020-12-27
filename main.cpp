@@ -154,6 +154,23 @@ Options: \n\
   std::cerr << "Build time: " << __DATE__ << " " <<__TIME__ << std::endl;
 }
 
+int OnX11Error(Display* display, XErrorEvent* error)
+{
+  std::cerr << "Received X11 error:" << error->error_code << ", " << error->minor_code << std::endl;
+
+  char text[1024] = {0};
+
+  int result = XGetErrorText(display, error->error_code, text, sizeof(text));
+  if (result != 0)
+  {
+    std::cerr << "XGetErrorText failed, " << error << std::endl;
+    return 0;
+  }
+
+  std::cerr << text << std::endl;
+  return 0;
+}
+
 int main(int argc, char** argv)
 {
   option options[] = {{"x", required_argument, 0, 0},
@@ -233,6 +250,8 @@ int main(int argc, char** argv)
     std::cerr << "Failed to open display" << std::endl;
     return 1;
   }
+
+  XSetErrorHandler(OnX11Error);
 
   Window root = XDefaultRootWindow(display);
 
