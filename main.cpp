@@ -24,21 +24,17 @@ GetWinddowsState(XWindow& window, const std::vector<std::string>& exclude)
 
   for (auto& e : window.Children())
   {
-    bool excluded = false;
     try
     {
-      excluded =
-          std::find(exclude.begin(), exclude.end(), e.Title()) != exclude.end();
+      if (std::find(exclude.begin(), exclude.end(), e.Title()) == exclude.end())
+      {
+        windows.emplace_back(WindowState{e, e.CurrentPosition(), e.WmState()});
+      }
     }
     catch (const std::exception& ex)
     {
-      std::cerr << "Couldn't read title for window: " << e.WindowHandle()
+      std::cerr << "Couldn't read state for window: " << e.WindowHandle()
                 << ", " << ex.what() << std::endl;
-    }
-
-    if (!excluded)
-    {
-      windows.emplace_back(WindowState{e, e.CurrentPosition(), e.WmState()});
     }
   }
 
@@ -144,19 +140,20 @@ void Help(const char* name)
 Options: \n\
 	-x: The width, in pixels of the original screen area\n\
 	-y: The height, in pixels of the original screen area\n\
-	-screen_timeout: The timeout, in milliseconds, to wait for RRScreenChangeNotify events after a new screen is plugged / unplugged\n\
+	--screen_timeout: The timeout, in milliseconds, to wait for RRScreenChangeNotify events after a new screen is plugged / unplugged\n\
 	--exclude: A comma separated list of window titles to exclude when saving / restoring positions\n\
 	--refresh: The refresh rate at which windows are to be saved (in milliseconds)\n\
 	--help: Display this message\n";
 
   fprintf(stderr, help, name);
 
-  std::cerr << "Build time: " << __DATE__ << " " <<__TIME__ << std::endl;
+  std::cerr << "Build time: " << __DATE__ << " " << __TIME__ << std::endl;
 }
 
 int OnX11Error(Display* display, XErrorEvent* error)
 {
-  std::cerr << "Received X11 error:" << error->error_code << ", " << error->minor_code << std::endl;
+  std::cerr << "Received X11 error:" << error->error_code << ", "
+            << error->minor_code << std::endl;
 
   char text[1024] = {0};
 

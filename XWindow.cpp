@@ -75,7 +75,7 @@ XProperty XWindow::GetPropertyImpl(const char* name, Atom type)
   if (actual_type != type)
   {
     throw RuntimeError("Unexpected property type: " +
-                       std::to_string(actual_type));
+                       std::to_string(actual_type) + " for property: " + name);
   }
 
   return {buffer, type, items};
@@ -169,11 +169,11 @@ void XWindow::SendRawEvent(const char* type,
 
 void XWindow::SetPosition(const Position& position)
 {
- /*
- * Experiments have shown that sending a MOVERSIZE_WINDOW event don't work
- * under gnome & derivates if any of the MAXIMIZED_* flags are set.
- * To work around that, this method saves, removes, and restores these flags
- */
+  /*
+   * Experiments have shown that sending a MOVERSIZE_WINDOW event don't work
+   * under gnome & derivates if any of the MAXIMIZED_* flags are set.
+   * To work around that, this method saves, removes, and restores these flags
+   */
 
   auto state = WmState();
 
