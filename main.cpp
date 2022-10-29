@@ -2,6 +2,7 @@
 #include <chrono>
 #include <thread>
 #include <sstream>
+#include <optional>
 #include <X11/extensions/randr.h>
 #include <X11/extensions/Xrandr.h>
 #include <getopt.h>
@@ -66,7 +67,8 @@ void Run(Display* display,
          size_t event_timeout_ms,
          int original_x,
          int original_y,
-         const std::vector<std::string>& exclude)
+         const std::vector<std::string>& exclude,
+         const std::optional<std::string>& foreground_when_lost)
 {
   if (XSelectInput(display, root.WindowHandle(), RRScreenChangeNotifyMask) == 0)
   {
@@ -126,6 +128,26 @@ void Run(Display* display,
       {
         std::cerr << "Original screens lost (" << screen_event->width << ", "
                   << screen_event->height << ")" << std::endl;
+
+        for (auto& e : state)
+        {
+          try
+          {
+
+            if (e.window.Title() == foreground_when_lost)
+            {
+              e.window.Activate();
+              std::cerr << "Activated window: " << e.window.Title()
+                        << std::endl;
+              break;
+            }
+          }
+          catch (const std::exception& e)
+          {
+            std::cerr << "Failed to get window title, " << e.what()
+                      << std::endl;
+          }
+        }
       }
 
       all_screens_present = original_screens;
@@ -170,15 +192,17 @@ int OnX11Error(Display* display, XErrorEvent* error)
 
 int main(int argc, char** argv)
 {
-  option options[] = {{"x", required_argument, 0, 0},
-                      {"y", required_argument, 0, 0},
-                      {"refresh", required_argument, 0, 0},
-                      {"screen-timeout", required_argument, 0, 0},
-                      {"exclude", required_argument, 0, 0},
-                      {"help", no_argument, 0, 0},
+  option options[] = {{"x", required_argument, 0, 'x'},
+                      {"y", required_argument, 0, 'y'},
+                      {"refresh", required_argument, 0, 'r'},
+                      {"screen-timeout", required_argument, 0, 's'},
+                      {"exclude", required_argument, 0, 'e'},
+                      {"foreground-when-lost", required_argument, 0, 'f'},
+                      {"help", no_argument, 0, 'h'},
                       {0, 0, 0, 0}};
 
-  auto parse_int = [](const char* str) {
+  auto parse_int = [](const char* str)
+  {
     try
     {
       return std::stoul(str);
@@ -194,6 +218,7 @@ int main(int argc, char** argv)
   int y = -1;
   size_t refresh_timeout = 5000;
   size_t screen_timeout = 2000;
+  std::optional<std::string> foreground_when_lost;
 
   std::vector<std::string> exclude;
 
@@ -222,6 +247,10 @@ int main(int argc, char** argv)
       case 'h':
         Help(argv[0]);
         exit(1);
+        break;
+
+      case 'f':
+        foreground_when_lost = optarg;
         break;
 
       case 'e':
@@ -258,7 +287,8 @@ int main(int argc, char** argv)
       screen_timeout,
       x,
       y,
-      {"nemo-desktop", "Desktop"});
+      exclude,
+      foreground_when_lost);
 
   XCloseDisplay(display);
 

@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <X11/Xatom.h>
 #include <map>
+#include <thread>
 
 #include "XWindow.h"
 #include "RuntimeError.h"
@@ -165,6 +166,8 @@ void XWindow::SendRawEvent(const char* type,
     throw RuntimeError("Failed to send event " + std::string(type) +
                        " on window: " + std::to_string(_window));
   }
+
+  XFlush(_display);
 }
 
 void XWindow::SetPosition(const Position& position)
@@ -179,13 +182,23 @@ void XWindow::SetPosition(const Position& position)
 
   auto v_atom = XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_VERT", true);
   auto h_atom = XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_HORZ", true);
+  auto fullscreen = XInternAtom(_display, "_NET_WM_STATE_FULLSCREEN", true);
 
   auto new_state = state;
-  new_state.erase(
-      std::remove_if(new_state.begin(),
-                     new_state.end(),
-                     [&](auto e) { return e == v_atom || e == h_atom; }),
-      new_state.end());
+  new_state.erase(std::remove_if(new_state.begin(),
+                                 new_state.end(),
+                                 [&](auto e) {
+                                   return e == v_atom || e == h_atom ||
+                                          e == fullscreen;
+                                 }),
+                  new_state.end());
+
+  if (std::find(state.begin(), state.end(), fullscreen) != state.end())
+  {
+    std::cerr << "Removing fullscreen state from window " << Title()
+              << std::endl;
+    SetWmState({fullscreen}, false);
+  }
 
   SetWmState({v_atom, h_atom}, false);
 
@@ -198,6 +211,11 @@ void XWindow::SetPosition(const Position& position)
                 position.height});
 
   SetWmState(state, true);
+  if (std::find(state.begin(), state.end(), fullscreen) != state.end())
+  {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    SetWmState({fullscreen}, true);
+  }
 }
 
 std::vector<unsigned long> XWindow::WmState()
@@ -224,4 +242,22 @@ void XWindow::SetWmState(const std::vector<unsigned long>& state, bool set)
 Window XWindow::WindowHandle() const
 {
   return _window;
+}
+
+void XWindow::Activate()
+{
+  SendRawEvent("_NET_ACTIVE_WINDOW", {});
+  XMapRaised(_display, _window);
+
+  auto fullscreen = XInternAtom(_display, "_NET_WM_STATE_FULLSCREEN", true);
+  auto state = WmState();
+  if (std::find(state.begin(), state.end(), fullscreen) != state.end())
+  {
+    // Corner case for fullscreen windows: They can be 'broken' if they aren't
+    // set to non-fullscreen and back
+    SetWmState({fullscreen}, false);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    SetWmState({fullscreen}, true);
+  }
 }

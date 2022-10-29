@@ -27,6 +27,8 @@ class XWindow
 
     Window WindowHandle() const;
 
+    void Activate();
+
   private:
     template <typename T>
     std::enable_if_t<is_vector<T>::value, T> GetProperty(const char* name, Atom type);
