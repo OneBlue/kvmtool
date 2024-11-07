@@ -257,7 +257,7 @@ void XWindow::Activate()
     // set to non-fullscreen and back
     SetWmState({fullscreen}, false);
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     SetWmState({fullscreen}, true);
   }
 }

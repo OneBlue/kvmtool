@@ -108,7 +108,8 @@ void Run(Display* display,
          int original_x,
          int original_y,
          const std::vector<std::string>& exclude,
-         const std::optional<std::string>& foreground_when_lost)
+         const std::optional<std::string>& foreground_when_lost,
+         std::optional<size_t> foreground_delay_ms)
 {
   if (XSelectInput(display, root.WindowHandle(), RRScreenChangeNotifyMask) == 0)
   {
@@ -179,6 +180,12 @@ void Run(Display* display,
 
             if (e.window.Title() == foreground_when_lost)
             {
+              if (foreground_delay_ms.has_value())
+              {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(foreground_delay_ms.value()));
+              }
+
               e.window.Activate();
               std::cerr << "Activated window: " << e.window.Title()
                         << std::endl;
@@ -201,13 +208,15 @@ void Run(Display* display,
 void Help(const char* name)
 {
   const char* help =
-      "Usage: %s -x screen_witdh -y screen_height [--screen-timeout timeout_ms] [--refresh refresh_ms] [--exclude window1,window2]\n\
+      "Usage: %s -x screen_witdh -y screen_height [--screen-timeout timeout_ms] [--refresh refresh_ms] [--exclude window1,window2] [--foreground_when_lost window] [--foreground-delay delay_ms]\n\
 Options: \n\
 	-x: The width, in pixels of the original screen area\n\
 	-y: The height, in pixels of the original screen area\n\
 	--screen_timeout: The timeout, in milliseconds, to wait for RRScreenChangeNotify events after a new screen is plugged / unplugged\n\
 	--exclude: A comma separated list of window titles to exclude when saving / restoring positions\n\
 	--refresh: The refresh rate at which windows are to be saved (in milliseconds)\n\
+	--foreground-when-lost: window to put to the foreground when screens are lost\n\
+	--foreground-delay: delay before moving window to foreground, in milliseconds\n\
 	--help: Display this message\n";
 
   fprintf(stderr, help, name);
@@ -242,6 +251,7 @@ int main(int argc, char** argv)
                       {"exclude", required_argument, 0, 'e'},
                       {"foreground-when-lost", required_argument, 0, 'f'},
                       {"resize-timeout", required_argument, 0, 'i'},
+                      {"foreground-delay", required_argument, 0, 'd'},
                       {"help", no_argument, 0, 'h'},
                       {0, 0, 0, 0}};
 
@@ -264,12 +274,13 @@ int main(int argc, char** argv)
   size_t resize_timeout = 2000;
   size_t screen_timeout = 2000;
   std::optional<std::string> foreground_when_lost;
+  std::optional<size_t> foreground_delay;
 
   std::vector<std::string> exclude;
 
   int arg = -1;
   int index = -1;
-  while ((arg = getopt_long(argc, argv, "x:y:r:s:eh", options, &index)) != -1)
+  while ((arg = getopt_long(argc, argv, "x:y:r:s:e:d:h", options, &index)) != -1)
   {
     switch (arg)
     {
@@ -289,6 +300,10 @@ int main(int argc, char** argv)
         screen_timeout = parse_int(optarg);
         break;
 
+      case 'd':
+        foreground_delay = parse_int(optarg);
+        break;
+
       case 'h':
         Help(argv[0]);
         exit(1);
@@ -303,6 +318,8 @@ int main(int argc, char** argv)
         break;
 
       case 'e':
+      {
+
         std::istringstream str(optarg);
         std::string window;
         while (std::getline(str, window, ','))
@@ -310,6 +327,7 @@ int main(int argc, char** argv)
           exclude.emplace_back(std::move(window));
         }
         break;
+      }
     }
   }
 
@@ -338,7 +356,8 @@ int main(int argc, char** argv)
       x,
       y,
       exclude,
-      foreground_when_lost);
+      foreground_when_lost,
+      foreground_delay);
 
   XCloseDisplay(display);
 
